@@ -15,11 +15,11 @@ handle: data
 	^(self pattern: data) ifTrue: [self doYourStuff: data]
 ! !
 
-STalkerPlugin subclass: #EchoPlugin
+STalkerPlugin subclass: #PingPlugin
         instanceVariableNames: ''
         category: 'IRCBot'!
 
-!EchoPlugin methodsFor: 'initializing'!
+!PingPlugin methodsFor: 'initializing'!
 
 pattern: aLine
 	^(RegularExpression fromString: '^PING :(.+)$') test: aLine. "'$"
@@ -36,15 +36,23 @@ Object subclass: #IRCBot
 
 !IRCBot methodsFor: 'initializing'!
 
+
 initialize
-	|echoPlugin|
-	plugins := Array new.
+    super initialize.
+    self initializeWithPlugins: (Array with: PingPlugin).
+!
 
-	"HACK to have socket everywhere"
-	echoPlugin := EchoPlugin new.
-	echoPlugin socket: socket.
+initializeWithPlugins: pluginsToAdd
+    self addPlugins: (Array withAll: pluginsToAdd).
+!
 
-	plugins add: echoPlugin.
+addPlugins: anArray
+    plugins := anArray collect: [:aPlugin| self spawnPlugin: aPlugin].
+    console log: plugins.
+!
+
+spawnPlugin: aPlugin
+    ^(aPlugin new socket: socket).
 !
 
 start
