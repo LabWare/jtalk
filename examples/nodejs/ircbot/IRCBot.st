@@ -67,7 +67,7 @@ STalkerPlugin subclass: #FreenodeLoginPlugin
 !FreenodeLoginPlugin methodsFor: 'initializing'!
 
 nickname
-        ^ 'StalkerBot'.
+        ^ 'StalkerBot', 1000 atRandom.
 !
 
 password
@@ -97,7 +97,7 @@ STalkerPlugin subclass: #AutojoinPlugin
 initialize
     super initialize.
     channels := Array new.
-    channels add: '#jtalk'.
+    channels add: '#jtalk-bots'.
 !
 
 addChannel: aString
