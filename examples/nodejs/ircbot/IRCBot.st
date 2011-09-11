@@ -1,4 +1,26 @@
-Object subclass: #STalkerPlugin
+Object subclass: #STalkerObject
+        instanceVariableNames: ''
+        category: 'IRCBot'!
+
+!STalkerObject methodsFor: 'logging'!
+
+log: aString
+    console log: 'RECV - ', aString.
+!
+
+info: aString
+    console log: 'INFO - ', aString.
+!
+
+error: aString
+    console log: 'ERRR - ', aString.
+!
+
+warning: aString
+    console log: 'WARN - ', aString.
+! !
+
+STalkerObject subclass: #STalkerPlugin
         instanceVariableNames: 'socket'
         category: 'IRCBot'!
 !STalkerPlugin methodsFor: 'initializing'!
@@ -9,6 +31,14 @@ socket
 
 socket: aSocket
 	socket := aSocket.
+!
+
+raw: aString
+        socket write: aString, String crlf.
+!
+
+say: aString to: aChannel
+        self raw: 'PRIVMSG ', aChannel, ' :', aString.
 !
 
 handle: data
@@ -22,15 +52,71 @@ STalkerPlugin subclass: #PingPlugin
 !PingPlugin methodsFor: 'initializing'!
 
 pattern: aLine
-	^(RegularExpression fromString: '^PING :(.+)$') test: aLine. "'$"
+	^ (RegularExpression fromString: '^PING :(.+)') test: aLine.
 !
 
 doYourStuff: data
-	socket write: ((data replaceRegexp: 'PING' with: 'PONG'),'\r\n').
+    self info: 'Answering ping to: ', data.
+	self raw: (data replaceRegexp: 'PING' with: 'PONG').
 ! !
 
+STalkerPlugin subclass: #FreenodeLoginPlugin
+        instanceVariableNames: ''
+        category: 'IRCBot'!
 
-Object subclass: #IRCBot
+!FreenodeLoginPlugin methodsFor: 'initializing'!
+
+nickname
+        ^ 'StalkerBot'.
+!
+
+password
+        ^ nil
+!
+
+realName
+        ^ 'JTalk/NodeJS Bot'.
+!
+
+pattern: aLine
+	^ (RegularExpression fromString: '^.*No Ident response.*') test: aLine
+!
+
+doYourStuff: data
+	self info: 'Loging in as ', self nickname.
+	self raw: 'NICK ', self nickname.
+	self raw: 'USER ',  self nickname, ' 8 *  : ', self realName .
+! !
+
+STalkerPlugin subclass: #AutojoinPlugin
+        instanceVariableNames: 'channels'
+        category: 'IRCBot'!
+
+!AutojoinPlugin methodsFor: 'initializing'!
+
+initialize
+    super initialize.
+    channels := Array new.
+    channels add: '#vectorlinux-es'.
+!
+
+addChannel: aString
+        channels add: aString.
+!
+
+pattern: aLine
+        ":StalkerBot MODE StalkerBot :+i"
+        ^ (RegularExpression fromString: '^.+MODE.+\+i.*') test: aLine
+!
+
+doYourStuff: data
+	self info: 'Autojoining channels.'.
+	channels do: [ :channelName |
+	                    self raw: 'JOIN ', channelName.
+	                    self info: 'Joining ', channelName. ].
+! !
+
+STalkerObject subclass: #IRCBot
         instanceVariableNames: 'plugins'
         category: 'IRCBot'!
 
@@ -39,7 +125,7 @@ Object subclass: #IRCBot
 
 initialize
     super initialize.
-    self initializeWithPlugins: (Array with: PingPlugin).
+    self initializeWithPlugins: (Array with: PingPlugin with: AutojoinPlugin with: FreenodeLoginPlugin).
 !
 
 initializeWithPlugins: pluginsToAdd
@@ -48,41 +134,22 @@ initializeWithPlugins: pluginsToAdd
 
 addPlugins: anArray
     plugins := anArray collect: [:aPlugin| self spawnPlugin: aPlugin].
-    console log: plugins.
 !
 
 spawnPlugin: aPlugin
+    self info: 'Plugin loaded: ', aPlugin name.
     ^(aPlugin new socket: socket).
 !
 
 start
     console log: socket.
-    socket on: 'connect' callback:[ console log: 'hem connectat'] .
-    socket on:'data' callback:[:data|
-	data linesDo: [:line |
- 	      	 	console log: 'RECV - ' , line.
-			line = '' ifFalse:[ self handle: line]]].
-socket setEncoding: 'ascii'.
-socket setNoDelay.
-socket connect: 6667 host: 'irc.freenode.org'.
-
-<function sleep(callback) {
-  var now = new Date().getTime();
-  while(new Date().getTime() < now + 1000) {
-  }
-  callback();
-}
-
-console.log('Sleep');
-for(var i = 0; i < 4; i++) {
-  sleep(function() {console.log(i)});
-}>.
-     [ socket write: 'NICK jtalkbot1919', String crlf.
-       socket write: 'USER guest1919191 8 * :Node.js IRC bot',String crlf. ] valueWithTimeout: 1000.
-       console log: 'enviat: NICK jtalkbot1919'.
-       console log: 'USER guest1919191 8 * :Node.js IRC bot'.
-     [ socket write: 'JOIN #vectorlinux-es', String crlf. ] valueWithTimeout: 1000.
-
+    socket on: 'connect' callback: [ self info: 'Hem connectat'] .
+    socket on:'data' callback:[ :data | data linesDo: [:line |
+ 	      	 	self log: line.
+			    line = '' ifFalse:[ self handle: line]]].
+    socket setEncoding: 'ascii'.
+    socket setNoDelay.
+    socket connect: 6667 host: 'irc.freenode.org'.
 !
 
 handle: data
@@ -91,10 +158,6 @@ handle: data
 
 !IRCBot class methodsFor: 'initialization'!
 initialize
-        "We require these Node modules."
-    os := require value: 'os'.
-    http := require value: 'http'.
-    net := require value: 'net'.
     socket :=  < new require('net').Socket()>.
 !
 
