@@ -97,7 +97,7 @@ STalkerPlugin subclass: #AutojoinPlugin
 initialize
     super initialize.
     channels := Array new.
-    channels add: '#vectorlinux-es'.
+    channels add: '#jtalk'.
 !
 
 addChannel: aString
